@@ -108,6 +108,7 @@ const (
 	Created
 	Unchanged
 	Configured
+	Mutated
 )
 
 type ApplyEvent struct {

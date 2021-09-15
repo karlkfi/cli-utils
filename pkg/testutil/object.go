@@ -13,7 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/kubectl/pkg/scheme"
 	"sigs.k8s.io/cli-utils/pkg/object"
-	"sigs.k8s.io/cli-utils/pkg/object/dependson"
 )
 
 var codec = scheme.Codecs.LegacyCodec(scheme.Scheme.PrioritizedVersionsAllGroups()...)
@@ -80,37 +79,5 @@ func (a owningInvMutator) Mutate(u *unstructured.Unstructured) {
 	err = unstructured.SetNestedStringMap(u.Object, annos, "metadata", "annotations")
 	if !assert.NoError(a.t, err) {
 		a.t.FailNow()
-	}
-}
-
-// AddDependsOn returns a Mutator which adds the passed objects as a
-// depends-on annotation to the object which is mutated. Multiple objects
-// passed in means multiple depends on objects in the annotation separated
-// by a comma.
-func AddDependsOn(t *testing.T, objs ...*unstructured.Unstructured) Mutator {
-	return dependsOnMutator{
-		t:       t,
-		depObjs: objs,
-	}
-}
-
-// dependsOnMutator encapsulates fields for adding depends-on annotation
-// to a test object. Implements the Mutator interface.
-type dependsOnMutator struct {
-	t       *testing.T
-	depObjs []*unstructured.Unstructured
-}
-
-// Mutate writes a depends-on annotation on the supplied object. The value of
-// the annotation is a set of dependencies referencing the dependsOnMutator's
-// depObjs.
-func (d dependsOnMutator) Mutate(u *unstructured.Unstructured) {
-	objMetas, err := object.UnstructuredsToObjMetas(d.depObjs)
-	if !assert.NoError(d.t, err) {
-		d.t.FailNow()
-	}
-	err = dependson.WriteAnnotation(u, objMetas)
-	if !assert.NoError(d.t, err) {
-		d.t.FailNow()
 	}
 }

@@ -11,12 +11,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/cli-utils/pkg/apply/filter"
+	"sigs.k8s.io/cli-utils/pkg/apply/mutator"
 	"sigs.k8s.io/cli-utils/pkg/apply/prune"
 	"sigs.k8s.io/cli-utils/pkg/apply/task"
 	"sigs.k8s.io/cli-utils/pkg/apply/taskrunner"
 	"sigs.k8s.io/cli-utils/pkg/common"
 	"sigs.k8s.io/cli-utils/pkg/inventory"
 	"sigs.k8s.io/cli-utils/pkg/object"
+	dtestutil "sigs.k8s.io/cli-utils/pkg/object/dependson/testutil"
 	"sigs.k8s.io/cli-utils/pkg/testutil"
 )
 
@@ -302,7 +304,7 @@ func TestTaskQueueBuilder_AppendApplyWaitTasks(t *testing.T) {
 		"deployment depends on secret creates multiple tasks": {
 			applyObjs: []*unstructured.Unstructured{
 				testutil.Unstructured(t, resources["deployment"],
-					testutil.AddDependsOn(t, testutil.Unstructured(t, resources["secret"]))),
+					dtestutil.AddDependsOn(t, testutil.ToIdentifier(t, resources["secret"]))),
 				testutil.Unstructured(t, resources["secret"]),
 			},
 			expectedTasks: []taskrunner.Task{
@@ -338,9 +340,9 @@ func TestTaskQueueBuilder_AppendApplyWaitTasks(t *testing.T) {
 		"cyclic dependency returns error": {
 			applyObjs: []*unstructured.Unstructured{
 				testutil.Unstructured(t, resources["deployment"],
-					testutil.AddDependsOn(t, testutil.Unstructured(t, resources["secret"]))),
+					dtestutil.AddDependsOn(t, testutil.ToIdentifier(t, resources["secret"]))),
 				testutil.Unstructured(t, resources["secret"],
-					testutil.AddDependsOn(t, testutil.Unstructured(t, resources["deployment"]))),
+					dtestutil.AddDependsOn(t, testutil.ToIdentifier(t, resources["deployment"]))),
 			},
 			expectedTasks: []taskrunner.Task{},
 			isError:       true,
@@ -356,7 +358,12 @@ func TestTaskQueueBuilder_AppendApplyWaitTasks(t *testing.T) {
 				Mapper:       testutil.NewFakeRESTMapper(),
 				InvClient:    fakeInvClient,
 			}
-			tq, err := tqb.AppendApplyWaitTasks(tc.applyObjs, []filter.ValidationFilter{}, tc.options).Build()
+			tq, err := tqb.AppendApplyWaitTasks(
+				tc.applyObjs,
+				[]filter.ValidationFilter{},
+				[]mutator.Interface{},
+				tc.options,
+			).Build()
 			if tc.isError {
 				assert.NotNil(t, err, "expected error, but received none")
 				return
@@ -437,7 +444,7 @@ func TestTaskQueueBuilder_AppendPruneWaitTasks(t *testing.T) {
 		"dependent resources, two prune tasks, two wait tasks": {
 			pruneObjs: []*unstructured.Unstructured{
 				testutil.Unstructured(t, resources["pod"],
-					testutil.AddDependsOn(t, testutil.Unstructured(t, resources["secret"]))),
+					dtestutil.AddDependsOn(t, testutil.ToIdentifier(t, resources["secret"]))),
 				testutil.Unstructured(t, resources["secret"]),
 			},
 			options: Options{Prune: true},
@@ -604,9 +611,9 @@ func TestTaskQueueBuilder_AppendPruneWaitTasks(t *testing.T) {
 		"cyclic dependency returns error": {
 			pruneObjs: []*unstructured.Unstructured{
 				testutil.Unstructured(t, resources["deployment"],
-					testutil.AddDependsOn(t, testutil.Unstructured(t, resources["secret"]))),
+					dtestutil.AddDependsOn(t, testutil.ToIdentifier(t, resources["secret"]))),
 				testutil.Unstructured(t, resources["secret"],
-					testutil.AddDependsOn(t, testutil.Unstructured(t, resources["deployment"]))),
+					dtestutil.AddDependsOn(t, testutil.ToIdentifier(t, resources["deployment"]))),
 			},
 			options:       Options{Prune: true},
 			expectedTasks: []taskrunner.Task{},
